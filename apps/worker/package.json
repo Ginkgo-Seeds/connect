@@ -1,0 +1,17 @@
+{
+  "name": "@connect/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc6 -p tsconfig.json",
+    "lint": "eslint src test --max-warnings 0",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@connect/core": "workspace:*",
+    "@connect/shared": "workspace:*"
+  }
+}
