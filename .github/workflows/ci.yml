@@ -1,0 +1,76 @@
+name: Foundation gates
+
+on:
+  push:
+    branches:
+      - main
+      - feat/foundation-001
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  code:
+    name: Code gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  infrastructure:
+    name: Infrastructure smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose
+        run: docker compose config
+
+      - name: Start local infrastructure
+        run: docker compose up -d --wait
+
+      - name: Inspect services
+        run: docker compose ps
+
+      - name: Verify PostgreSQL
+        run: docker compose exec -T postgres pg_isready -U ginkgo_connect -d ginkgo_connect
+
+      - name: Verify Redis
+        run: docker compose exec -T redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
+
+      - name: Verify MinIO
+        run: curl --fail --silent http://127.0.0.1:19000/minio/health/live
+
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose down --volumes

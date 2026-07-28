@@ -1,2 +1,26 @@
 node_modules/
 .env
+
+# Package managers
+.pnpm-store/
+
+# Builds and tests
+.next/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Runtime files
+*.log
+*.pid
+
+# Local environment overrides
+.env.*
+!.env.example
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
