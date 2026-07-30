@@ -50,9 +50,9 @@ as a drop-in toolchain dependency would make lint support unsupported.
 ## Consequences
 
 TypeScript 7 features are unavailable until the compatibility decision is
-revisited. Lint and typecheck remain fully enabled. Prisma is installed only to
-establish compatibility; this ADR does not approve or claim implementation of a
-Prisma schema or repository.
+revisited. Lint and typecheck remain fully enabled. Foundation 002 subsequently
+implemented Prisma persistence under the package boundaries established here;
+that design is recorded in ADRs 0002–0005.
 
 No planned version required substitution during initial scaffolding. The only
 proven operational divergence was changing workspace compiler commands from

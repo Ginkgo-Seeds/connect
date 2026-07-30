@@ -1,15 +1,8 @@
-import type { FoundationStatus } from '@connect/shared';
-
-export interface ClockPort {
-  now(): Date;
-}
-
-export interface IdentifierPort {
-  next(): string;
-}
-
-export interface CoreContract {
-  readonly clock: ClockPort;
-  readonly identifiers: IdentifierPort;
-  readonly status: FoundationStatus;
-}
+export * from './approval.js';
+export * from './canonical.js';
+export * from './decision.js';
+export * from './domain.js';
+export * from './evidence.js';
+export * from './ports.js';
+export * from './runner.js';
+export * from './states.js';

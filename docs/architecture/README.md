@@ -19,7 +19,7 @@ flowchart TB
   core["@connect/core"]
   shared["@connect/shared"]
 
-  postgres[("PostgreSQL<br/>future source of truth")]
+  postgres[("PostgreSQL<br/>official source of truth")]
   redis[("Redis<br/>ephemeral")]
   minio[("MinIO<br/>local object storage")]
 

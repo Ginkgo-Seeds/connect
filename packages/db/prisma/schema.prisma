@@ -1,0 +1,424 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TaskState {
+  INGESTED
+  CLASSIFIED
+  PLANNED
+  BLOCKED
+  GATED
+  EXECUTED
+  VERIFIED
+  COMMITTED
+  FAILED
+}
+
+enum TaskBlockReason {
+  AWAITING_APPROVAL
+  CAPABILITY_GAP
+}
+
+enum RiskLevel {
+  R0
+  R1
+  R2
+  R3
+}
+
+enum Maturity {
+  SIMULATION
+  SHADOW
+  PRODUCTION
+}
+
+enum ApprovalVerdict {
+  APPROVED
+  REJECTED
+}
+
+enum ExecutionAttemptStatus {
+  PENDING
+  CLAIMED
+  SUCCEEDED
+  FAILED
+  RECONCILIATION_REQUIRED
+}
+
+enum ExecutionPhase {
+  CLAIMED
+  DISPATCHED
+  TERMINAL
+}
+
+enum ExecutionEffectState {
+  NONE
+  POSSIBLE
+  CONFIRMED
+}
+
+enum ExecutionReplayPolicy {
+  ALLOW_BEFORE_DISPATCH
+  NO_AUTOMATIC_REEXECUTION_AFTER_DISPATCH
+}
+
+enum EvidencePurpose {
+  APPROVAL
+  EXECUTION
+  VERIFICATION
+}
+
+enum EvidenceType {
+  LOG
+  SNAPSHOT
+  DIFF
+  TEST_RESULT
+  CHECKSUM
+  EXTERNAL_CONFIRMATION
+  ATTESTATION
+}
+
+enum EvidenceStrength {
+  WEAK
+  MEDIUM
+  STRONG
+}
+
+enum CreditReservationStatus {
+  ACTIVE
+  SETTLED
+  RELEASED
+}
+
+enum CreditLedgerType {
+  OPENING_GRANT
+  RESERVE
+  SETTLE
+  RELEASE
+}
+
+model Organization {
+  id              String           @id @default(uuid()) @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at")
+  tasks           Task[]
+  creditAccount   CreditAccount?
+  creditLedger    CreditLedger[]
+  commandReceipts CommandReceipt[]
+
+  @@map("organizations")
+}
+
+model Task {
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String             @map("organization_id") @db.Uuid
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  intent            String
+  instruction       String?
+  inputs            Json               @default("{}")
+  riskLevel         RiskLevel          @map("risk_level")
+  maturity          Maturity
+  state             TaskState          @default(INGESTED)
+  blockReason       TaskBlockReason?   @map("block_reason")
+  version           Int                @default(0)
+  eventSequence     BigInt             @default(0) @map("event_sequence")
+  correlationId     String             @map("correlation_id")
+  supersedesTaskId  String?            @map("supersedes_task_id") @db.Uuid
+  supersedesTask    Task?              @relation("TaskSupersession", fields: [supersedesTaskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  successors        Task[]             @relation("TaskSupersession")
+  approvalDecisions ApprovalDecision[]
+  creditLedger      CreditLedger[]
+  commandReceipts   CommandReceipt[]
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  frozenDecision    FrozenDecision?
+  approvalEnvelope  ApprovalEnvelope?
+  executionAttempt  ExecutionAttempt?
+  creditReservation CreditReservation?
+  events            TaskEvent[]
+  evidence          Evidence[]
+
+  @@unique([id, organizationId], map: "tasks_id_organization_key")
+  @@index([organizationId, state, createdAt], map: "tasks_organization_state_created_idx")
+  @@index([correlationId], map: "tasks_correlation_idx")
+  @@index([supersedesTaskId], map: "tasks_supersedes_idx")
+  @@map("tasks")
+}
+
+model FrozenDecision {
+  id                  String            @id @default(uuid()) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  taskId              String            @unique(map: "frozen_decisions_task_key") @map("task_id") @db.Uuid
+  task                Task              @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  canonicalIntent     String            @map("canonical_intent")
+  chosenSkillId       String?           @map("chosen_skill_id")
+  chosenSkillVersion  String?           @map("chosen_skill_version")
+  chosenExecutorRef   String?           @map("chosen_executor_ref")
+  executorVersion     String?           @map("executor_version")
+  skillManifestHash   String?           @map("skill_manifest_hash")
+  toolId              String?           @map("tool_id")
+  toolVersion         String?           @map("tool_version")
+  modelRef            String?           @map("model_ref")
+  rankedFallbacks     Json              @default("[]") @map("ranked_fallbacks")
+  catalogVersion      String            @map("catalog_version")
+  policyId            String            @map("policy_id")
+  policyVersion       String            @map("policy_version")
+  policySnapshot      Json              @map("policy_snapshot")
+  pricingVersion      String?           @map("pricing_version")
+  pricingSnapshot     Json?             @map("pricing_snapshot")
+  estimatedCredits    BigInt            @default(0) @map("estimated_credits")
+  reservedMaximum     BigInt            @default(0) @map("reserved_maximum")
+  validUntil          DateTime?         @map("valid_until")
+  riskLevel           RiskLevel         @map("risk_level")
+  maturity            Maturity
+  requiredEvidence    Json              @map("required_evidence")
+  requiredScopes      Json              @default("[]") @map("required_scopes")
+  approvalRequired    Boolean           @map("approval_required")
+  decisionInputsHash  String            @map("decision_inputs_hash")
+  decisionHash        String            @map("decision_hash")
+  algorithmVersion    String            @map("algorithm_version")
+  capabilityGapReason String?           @map("capability_gap_reason")
+  resolvedAt          DateTime          @map("resolved_at")
+  approvalEnvelope    ApprovalEnvelope?
+
+  @@unique([id, organizationId], map: "frozen_decisions_id_organization_key")
+  @@unique([id, taskId, organizationId], map: "frozen_decisions_id_task_organization_key")
+  @@unique([taskId, organizationId], map: "frozen_decisions_task_organization_key")
+  @@index([organizationId, decisionHash], map: "frozen_decisions_organization_hash_idx")
+  @@map("frozen_decisions")
+}
+
+model ApprovalEnvelope {
+  id               String            @id @default(uuid()) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  taskId           String            @unique(map: "approval_envelopes_task_key") @map("task_id") @db.Uuid
+  task             Task              @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  frozenDecisionId String            @unique(map: "approval_envelopes_decision_key") @map("frozen_decision_id") @db.Uuid
+  frozenDecision   FrozenDecision    @relation(fields: [frozenDecisionId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  decisionHash     String            @map("decision_hash")
+  policyVersion    String            @map("policy_version")
+  pricingVersion   String            @map("pricing_version")
+  toolVersion      String            @map("tool_version")
+  executorVersion  String            @map("executor_version")
+  estimatedCredits BigInt            @map("estimated_credits")
+  reservedMaximum  BigInt            @map("reserved_maximum")
+  requiredScopes   Json              @default("[]") @map("required_scopes")
+  validUntil       DateTime          @map("valid_until")
+  envelopeHash     String            @map("envelope_hash")
+  createdAt        DateTime          @map("created_at")
+  decision         ApprovalDecision?
+  evidence         Evidence[]
+
+  @@unique([id, organizationId], map: "approval_envelopes_id_organization_key")
+  @@unique([id, taskId, organizationId], map: "approval_envelopes_id_task_organization_key")
+  @@unique([taskId, organizationId], map: "approval_envelopes_task_organization_key")
+  @@unique([frozenDecisionId, organizationId], map: "approval_envelopes_decision_organization_key")
+  @@unique([frozenDecisionId, taskId, organizationId], map: "approval_envelopes_decision_task_organization_key")
+  @@index([organizationId, validUntil], map: "approval_envelopes_validity_idx")
+  @@map("approval_envelopes")
+}
+
+model ApprovalDecision {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  taskId             String           @map("task_id") @db.Uuid
+  approvalEnvelopeId String           @unique(map: "approval_decisions_envelope_key") @map("approval_envelope_id") @db.Uuid
+  approvalEnvelope   ApprovalEnvelope @relation(fields: [approvalEnvelopeId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  task               Task             @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  verdict            ApprovalVerdict
+  actorRef           String           @map("actor_ref")
+  actorScopes        Json             @default("[]") @map("actor_scopes")
+  reason             String?
+  envelopeHash       String           @map("envelope_hash")
+  decisionHash       String           @map("decision_hash")
+  commandId          String           @map("command_id")
+  decidedAt          DateTime         @map("decided_at")
+
+  @@unique([approvalEnvelopeId, organizationId], map: "approval_decisions_envelope_organization_key")
+  @@unique([approvalEnvelopeId, taskId, organizationId], map: "approval_decisions_envelope_task_organization_key")
+  @@index([organizationId, taskId], map: "approval_decisions_task_idx")
+  @@map("approval_decisions")
+}
+
+model ExecutionAttempt {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  organizationId        String                 @map("organization_id") @db.Uuid
+  taskId                String                 @unique(map: "execution_attempts_task_key") @map("task_id") @db.Uuid
+  task                  Task                   @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  idempotencyKey        String                 @map("idempotency_key")
+  status                ExecutionAttemptStatus @default(PENDING)
+  claimedAt             DateTime?              @map("claimed_at")
+  claimedBy             String?                @map("claimed_by")
+  leaseExpiresAt        DateTime?              @map("lease_expires_at")
+  dispatchedAt          DateTime?              @map("dispatched_at")
+  executionPhase        ExecutionPhase         @default(CLAIMED) @map("execution_phase")
+  effectState           ExecutionEffectState   @default(NONE) @map("effect_state")
+  replayPolicy          ExecutionReplayPolicy  @default(ALLOW_BEFORE_DISPATCH) @map("replay_policy")
+  claims                Int                    @default(0)
+  actualUsage           BigInt?                @map("actual_usage")
+  chargedCredits        BigInt?                @map("charged_credits")
+  overrunCredits        BigInt?                @map("overrun_credits")
+  providerCostMinor     BigInt?                @map("provider_cost_minor")
+  providerCostCurrency  String?                @map("provider_cost_currency")
+  effectMayHaveOccurred Boolean                @default(false) @map("effect_may_have_occurred")
+  output                Json?
+  failureCode           String?                @map("failure_code")
+  failureMessage        String?                @map("failure_message")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  finishedAt            DateTime?              @map("finished_at")
+  evidence              Evidence[]
+  ledger                CreditLedger[]
+
+  @@unique([id, organizationId], map: "execution_attempts_id_organization_key")
+  @@unique([id, taskId, organizationId], map: "execution_attempts_id_task_organization_key")
+  @@unique([taskId, organizationId], map: "execution_attempts_task_organization_key")
+  @@unique([organizationId, idempotencyKey], map: "execution_attempts_idempotency_key")
+  @@index([status, leaseExpiresAt], map: "execution_attempts_lease_idx")
+  @@map("execution_attempts")
+}
+
+model TaskEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  taskId         String         @map("task_id") @db.Uuid
+  task           Task           @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sequence       BigInt
+  name           String
+  fromState      TaskState      @map("from_state")
+  toState        TaskState?     @map("to_state")
+  payload        Json?
+  correlationId  String         @map("correlation_id")
+  commandId      String         @map("command_id")
+  occurredAt     DateTime       @default(now()) @map("occurred_at")
+  outboxMessage  OutboxMessage?
+
+  @@unique([id, organizationId], map: "task_events_id_organization_key")
+  @@unique([taskId, sequence], map: "task_events_task_sequence_key")
+  @@index([organizationId, taskId, occurredAt], map: "task_events_timeline_idx")
+  @@map("task_events")
+}
+
+model Evidence {
+  id                 String            @id @default(uuid()) @db.Uuid
+  organizationId     String            @map("organization_id") @db.Uuid
+  taskId             String            @map("task_id") @db.Uuid
+  task               Task              @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  attemptId          String?           @map("attempt_id") @db.Uuid
+  attempt            ExecutionAttempt? @relation(fields: [attemptId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  approvalEnvelopeId String?           @map("approval_envelope_id") @db.Uuid
+  approvalEnvelope   ApprovalEnvelope? @relation(fields: [approvalEnvelopeId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  purpose            EvidencePurpose
+  type               EvidenceType
+  strength           EvidenceStrength
+  producer           String
+  contentHash        String?           @map("content_hash")
+  payload            Json?
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  @@index([organizationId, taskId, purpose, createdAt], map: "evidence_task_purpose_idx")
+  @@index([contentHash], map: "evidence_content_hash_idx")
+  @@map("evidence")
+}
+
+model CreditAccount {
+  organizationId String       @id @map("organization_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  available      BigInt       @default(0)
+  reserved       BigInt       @default(0)
+  version        Int          @default(0)
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("credit_accounts")
+}
+
+model CreditReservation {
+  id             String                  @id @default(uuid()) @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  taskId         String                  @unique(map: "credit_reservations_task_key") @map("task_id") @db.Uuid
+  task           Task                    @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  status         CreditReservationStatus @default(ACTIVE)
+  reservedAmount BigInt                  @map("reserved_amount")
+  settledAmount  BigInt?                 @map("settled_amount")
+  releasedAmount BigInt?                 @map("released_amount")
+  pricingVersion String                  @map("pricing_version")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  terminalAt     DateTime?               @map("terminal_at")
+  ledger         CreditLedger[]
+
+  @@unique([id, organizationId], map: "credit_reservations_id_organization_key")
+  @@unique([id, taskId, organizationId], map: "credit_reservations_id_task_organization_key")
+  @@unique([taskId, organizationId], map: "credit_reservations_task_organization_key")
+  @@index([organizationId, status], map: "credit_reservations_organization_status_idx")
+  @@map("credit_reservations")
+}
+
+model CreditLedger {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @map("organization_id") @db.Uuid
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  taskId               String?            @map("task_id") @db.Uuid
+  task                 Task?              @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  reservationId        String?            @map("reservation_id") @db.Uuid
+  reservation          CreditReservation? @relation(fields: [reservationId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  attemptId            String?            @map("attempt_id") @db.Uuid
+  attempt              ExecutionAttempt?  @relation(fields: [attemptId, taskId, organizationId], references: [id, taskId, organizationId], onDelete: Restrict)
+  entryType            CreditLedgerType   @map("entry_type")
+  amount               BigInt
+  availableDelta       BigInt             @map("available_delta")
+  reservedDelta        BigInt             @map("reserved_delta")
+  actualUsage          BigInt?            @map("actual_usage")
+  overrunCredits       BigInt?            @map("overrun_credits")
+  pricingVersion       String?            @map("pricing_version")
+  executorVersion      String?            @map("executor_version")
+  providerCostMinor    BigInt?            @map("provider_cost_minor")
+  providerCostCurrency String?            @map("provider_cost_currency")
+  commandId            String             @map("command_id")
+  createdAt            DateTime           @default(now()) @map("created_at")
+
+  @@unique([reservationId, entryType], map: "credit_ledger_reservation_type_key")
+  @@index([organizationId, createdAt], map: "credit_ledger_organization_timeline_idx")
+  @@index([taskId], map: "credit_ledger_task_idx")
+  @@map("credit_ledger")
+}
+
+model CommandReceipt {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  operation      String
+  idempotencyKey String       @map("idempotency_key")
+  requestHash    String       @map("request_hash")
+  taskId         String?      @map("task_id") @db.Uuid
+  task           Task?        @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  result         Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([organizationId, operation, idempotencyKey], map: "command_receipts_idempotency_key")
+  @@index([organizationId, taskId], map: "command_receipts_task_idx")
+  @@map("command_receipts")
+}
+
+model OutboxMessage {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  eventId        String    @unique(map: "outbox_messages_event_key") @map("event_id") @db.Uuid
+  event          TaskEvent @relation(fields: [eventId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  topic          String
+  payload        Json
+  schemaVersion  Int       @default(1) @map("schema_version")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  claimedAt      DateTime? @map("claimed_at")
+  claimedBy      String?   @map("claimed_by")
+  attempts       Int       @default(0)
+  availableAt    DateTime  @default(now()) @map("available_at")
+  lastErrorCode  String?   @map("last_error_code")
+  publishedAt    DateTime? @map("published_at")
+
+  @@unique([eventId, organizationId], map: "outbox_messages_event_organization_key")
+  @@index([organizationId, createdAt], map: "outbox_messages_organization_idx")
+  @@map("outbox_messages")
+}
