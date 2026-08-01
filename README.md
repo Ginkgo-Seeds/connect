@@ -1,13 +1,13 @@
 # Ginkgo Connect
 
-Plataforma comercial de integrações governadas, conectores, APIs e servidores MCP para conectar agentes de IA a sistemas empresariais.
+Plataforma comercial para conectar qualquer LLM compatível a APIs, webhooks, servidores MCP e sistemas empresariais de forma ultra simplificada.
 
 **Status:** produto oficial em desenvolvimento  
 **Repositório canônico:** `ginkgoai/ginkgo-connect`  
 **Kernel:** Ginkgo Tree  
 **Licença:** proprietária comercial
 
-> Connect é uma distribuição vertical do Ginkgo Tree. Este repositório contém catálogo de conectores, validação de capacidades, configuração de integrações e políticas de acesso. Identidade, tenancy, billing, auditoria, secrets boundary e white-label pertencem ao kernel compartilhado.
+> O usuário descreve uma intenção. Connect identifica a ferramenta necessária, configura a conexão, valida a tarefa real e aplica credenciais, permissões e limites adequados.
 
 ## Papel no ecossistema
 
@@ -15,83 +15,105 @@ Plataforma comercial de integrações governadas, conectores, APIs e servidores 
 AI Stack — laboratório aberto Apache-2.0
         │
         ▼
-Ginkgo Tree — kernel comercial e white-label OS
+Ginkgo Tree — autonomia, limites, credenciais e auditoria
         │
-        └── Connect — integrações, APIs e MCP connectivity
+        └── Connect — intention-to-tool connectivity
 ```
 
-## Escopo do produto
+## Promessa do produto
 
-- catálogo de conectores e capacidades;
-- onboarding guiado de integrações;
-- APIs, webhooks e servidores MCP;
-- OAuth, credenciais e escopos governados;
-- testes de conexão e validação de tarefas;
+```text
+"Conecte esta IA ao meu CRM para consultar clientes e criar tarefas."
+                         │
+                         ▼
+Connect
+  1. entende a intenção;
+  2. identifica API, MCP ou conector;
+  3. solicita apenas credenciais e escopos necessários;
+  4. configura e testa a conexão;
+  5. demonstra a tarefa funcionando;
+  6. registra limites, auditoria e health checks.
+```
+
+O produto deve reduzir uma integração técnica complexa a um onboarding guiado e verificável.
+
+## Escopo principal
+
+- conexão de LLMs e agentes compatíveis;
+- catálogo de APIs, ferramentas, webhooks e servidores MCP;
+- geração e configuração assistida de conectores;
+- OAuth, API keys, tokens e escopos governados;
+- descoberta de capacidades por intenção;
+- mapeamento de intenção para ferramenta e ação;
+- geração de schemas e contratos de entrada/saída;
+- testes automáticos de autenticação e capacidade;
+- validação da tarefa solicitada pelo usuário;
 - read-only por padrão;
-- aprovação para escrita e ações sensíveis;
-- observabilidade, auditoria e health checks;
-- adaptadores para CRM, agenda, e-mail, dados e sistemas internos;
+- aprovação para escrita, exclusão, pagamento e ações sensíveis;
+- observabilidade, auditoria, retries e health checks;
+- adaptadores para CRM, agenda, e-mail, arquivos, bancos, BI, ERP e sistemas próprios;
 - implantação dedicada ou white-label mediante contrato.
 
 ## Fronteira de responsabilidades
 
-### Este repositório contém
+### Connect contém
 
-- contratos e adaptadores de conectores;
-- catálogo de ferramentas e capacidades;
-- UX de configuração, validação e diagnóstico;
+- entendimento e decomposição da intenção de integração;
+- catálogo e descoberta de capacidades;
+- contratos e adaptadores de APIs e MCPs;
+- gerador e configurador de conectores;
+- UX de onboarding, teste, diagnóstico e validação;
+- workers de sincronização e execução específica;
 - políticas específicas de integração;
-- workers e filas de sincronização;
 - testes, documentação e deploy da edição.
 
 ### Ginkgo Tree contém
 
 - autenticação, organizações, RBAC e multi-tenancy;
-- billing, metering e carteira de tokens;
-- agent runtime, approvals, auditoria e evidências;
-- secrets boundary e leases de credenciais;
+- agent runtime, autonomia, approvals e auditoria;
+- billing, metering, orçamento e carteira de tokens;
+- secrets boundary e leases temporários de credenciais;
+- Laplace para documentação de APIs, schemas, contexto e memória;
 - white-label, temas, domínios e componentes compartilhados.
 
-Connect deve consumir pacotes privados versionados do namespace `@ginkgo/*`. Não copie o kernel para este repositório.
+Connect deve consumir pacotes privados versionados `@ginkgo/*`; o kernel não deve ser copiado para este repositório.
 
 ## Arquitetura de alto nível
 
 ```text
-Usuário / Administrador
-          │
+Usuário / LLM / Agente
+          │ intenção
           ▼
-Connect Web ──► catálogo e configuração
-                    │
-                    ├──► Ginkgo Tree kernel
-                    ├──► credential boundary
-                    ├──► connector workers
-                    ├──► APIs / MCP / webhooks
-                    └──► sistemas externos autorizados
+Connect Planner
+  ├── descobre capacidade
+  ├── escolhe API / MCP / webhook
+  ├── cria configuração
+  ├── valida credencial e schema
+  └── executa teste funcional
+          │
+          ├──► Ginkgo Tree policy and secrets boundary
+          ├──► Laplace API knowledge
+          ├──► connector workers
+          └──► sistema externo autorizado
 ```
 
 ## Princípios
 
-1. **Read-only primeiro:** leitura é separada de mutação.
-2. **Menor privilégio:** escopos e credenciais são mínimos por capacidade.
-3. **Validação real:** uma integração só é considerada pronta depois de testar a tarefa contratada.
-4. **Segredos não transitam em prompts:** credenciais são resolvidas na boundary.
-5. **Ações sensíveis exigem aprovação:** escrita, exclusão, pagamento e publicação seguem políticas.
+1. **Intenção antes do conector:** o usuário descreve o resultado, não precisa conhecer a implementação.
+2. **Validação real:** uma integração só está pronta após executar a tarefa contratada em ambiente autorizado.
+3. **Read-only primeiro:** leitura é separada de mutação.
+4. **Menor privilégio:** escopos e credenciais são mínimos por capacidade.
+5. **Segredos fora do prompt:** credenciais são resolvidas na boundary.
 6. **Produto não duplica kernel:** capacidades reutilizáveis retornam ao Ginkgo Tree.
 
 ## Repository layout
 
-- `apps/api`: Fastify composition root and technical health endpoint.
-- `apps/web`: Next.js product interface.
-- `apps/worker`: connector and synchronization workers.
+- `apps/api`: Fastify composition root and health endpoints.
+- `apps/web`: onboarding and connector interface.
+- `apps/worker`: validation, connector and synchronization workers.
 - `packages/*`: framework-independent contracts and product boundaries.
 - `infra/docker`: local PostgreSQL, Redis and MinIO services.
-- `docs`: architecture decisions, operations and extraction provenance.
-
-## Requirements
-
-- Node.js 24.14.0
-- pnpm 11.17.0
-- Docker with Compose
+- `docs`: architecture, operations and extraction provenance.
 
 ## Foundation gates
 
@@ -108,13 +130,11 @@ docker compose ps
 
 Copy `.env.example` to `.env` only for local development. Example values must never be used in shared or production environments.
 
-See [local development](docs/operations/local-development.md) for health verification and service endpoints.
-
 ## Desenvolvimento
 
-- comportamento reutilizável por várias edições → `ginkgo-tree`;
-- comportamento exclusivo de integrações/MCP → `ginkgo-connect`;
-- exemplo genérico e sanitizado → `ai-stack`.
+- comportamento compartilhado → `ginkgo-tree`;
+- conexão intenção→ferramenta → `ginkgo-connect`;
+- exemplo genérico sanitizado → `ai-stack`.
 
 Nunca versione tokens OAuth, credenciais, payloads reais, dados de clientes, exports de produção ou endpoints internos.
 
