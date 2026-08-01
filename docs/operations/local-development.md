@@ -27,6 +27,31 @@ docker compose up -d --wait
 docker compose ps
 ```
 
+Foundation 002 database checks use PostgreSQL 17.6 through Testcontainers, so
+Docker must be running before `pnpm test`.
+
+PostgreSQL uses two deliberately separate roles:
+
+- `ginkgo_admin` is the database owner and is used only by migrations and
+  administrative local checks through `DATABASE_ADMIN_URL`.
+- `ginkgo_app` is the runtime role used through `DATABASE_URL`. It has no
+  `SUPERUSER`, `CREATEDB`, `CREATEROLE`, or `BYPASSRLS`, cannot alter the
+  schema or disable triggers, and receives only `CONNECT`, schema `USAGE`, and
+  table `SELECT`, `INSERT`, and `UPDATE`.
+
+The Compose entrypoint creates `ginkgo_app` only when PostgreSQL initializes an
+empty data directory. If a local volume predates this role split, back up any
+needed data and deliberately recreate that volume before using Foundation 002;
+entrypoint initialization scripts do not rerun against an existing volume.
+
+Prisma schema and migration gates use the administrative URL:
+
+```bash
+pnpm --filter @connect/db prisma:validate
+pnpm --filter @connect/db prisma:generate
+pnpm --filter @connect/db prisma:migrate:deploy
+```
+
 Local endpoints:
 
 | Service    | Endpoint                 |
@@ -39,7 +64,9 @@ Local endpoints:
 Health verification:
 
 ```bash
-docker compose exec -T postgres pg_isready -U ginkgo_connect -d ginkgo_connect
+docker compose exec -T postgres pg_isready -U ginkgo_admin -d ginkgo_connect
+docker compose exec -T postgres psql -U ginkgo_admin -d ginkgo_connect -Atc \
+  "SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname = 'ginkgo_app'"
 docker compose exec -T redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
 curl --fail http://127.0.0.1:19000/minio/health/live
 ```

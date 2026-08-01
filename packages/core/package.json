@@ -14,8 +14,8 @@
   },
   "scripts": {
     "build": "tsc6 -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0",
-    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src test --max-warnings 0",
+    "test": "vitest run",
     "typecheck": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -2,7 +2,8 @@
 
 Foundation for a governed, read-only integration platform.
 
-> Status: Foundation 001. Product capabilities are intentionally not implemented yet.
+> Status: Foundation 002 implementation. Product capabilities remain outside
+> this persistence and Kernel foundation.
 
 ## Repository layout
 

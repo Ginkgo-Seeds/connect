@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@connect/core": "workspace:*",
+    "@connect/db": "workspace:*",
     "@connect/shared": "workspace:*"
   }
 }

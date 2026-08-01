@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-28
-- Implementation: Pending
+- Implementation: Foundation 002
 
 ## Context
 
@@ -20,10 +20,28 @@ silently mutating balances.
 - Reservation, settlement, and release operations will be idempotent and
   traceable to the originating task and execution.
 - Ledger truth will live in PostgreSQL, not Redis.
+- All credit and provider-cost values are integers represented as PostgreSQL
+  `BIGINT` and TypeScript `bigint`; floating point is forbidden.
+- Each Task has at most one logical reservation. Reserve, settle, or release is
+  committed atomically with the associated lifecycle facts.
+- Settlement is capped at the reserved maximum. If actual usage exceeds that
+  ceiling, settlement, ledger, attempt overrun, Evidence, Task failure,
+  TaskEvents, and outbox messages are one transaction.
+- Approval is durable before reservation. Insufficient balance keeps the Task
+  blocked, preserves the approval, and emits an informational resume-failure
+  event without creating an active reservation.
+- Crossing the persisted `DISPATCHED` boundary means that an external effect is
+  possible. If the executor result cannot be persisted, the existing
+  reservation remains active: the system neither releases it blindly nor
+  settles an unconfirmed charge. The attempt and Task require reconciliation,
+  with known usage and Evidence retained when available.
+- A result explicitly persisted with reliable usage may be settled according to
+  the normal failure policy. Missing or uncertain post-dispatch information is
+  never interpreted as proof that no effect occurred.
 
 ## Consequences
 
-Future design must define precision, pricing versions, overdraft policy,
-expiration, reconciliation, and failure recovery. Foundation 001 implements no
-billing tables, balances, pricing logic, reservation service, or settlement
-service.
+Foundation 002 defines integer precision, versioned pricing snapshots, a
+no-overdraft policy, reservation/settlement/release, and explicit overrun
+reconciliation. Credit purchase, Stripe, pricing administration, and product UI
+remain outside scope.

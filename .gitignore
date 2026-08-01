@@ -10,6 +10,7 @@ dist/
 coverage/
 .turbo/
 *.tsbuildinfo
+packages/db/src/generated/
 
 # Runtime files
 *.log

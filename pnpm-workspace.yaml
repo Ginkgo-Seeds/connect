@@ -4,8 +4,11 @@ packages:
 
 allowBuilds:
   '@prisma/engines': true
+  cpu-features: false
   prisma: true
+  protobufjs: true
   sharp: true
+  ssh2: false
 
 minimumReleaseAgeExclude:
   - '@prisma/client-runtime-utils@7.9.1'

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-28
-- Implementation: Infrastructure only; persistence model pending
+- Implementation: Foundation 002 persistence and transactional outbox
 
 ## Context
 
@@ -19,10 +19,18 @@ allowing cache or queue state to become authoritative.
   reconstructed or safely expired.
 - Consumers will be idempotent and will not infer durable completion solely from
   Redis state.
+- Task state, its TaskEvents, and one outbox message per event are committed in
+  the same PostgreSQL transaction.
+- Event sequence is allocated by CAS-incrementing `Task.eventSequence`; queries
+  based on `MAX(sequence) + 1` are forbidden.
+- Outbox tenant, event identity, topic, payload, schema version, and creation
+  time are immutable. Only claim, retry scheduling, error, attempt count, and
+  publication fields may change.
+- Concurrent claims use `FOR UPDATE SKIP LOCKED`.
 
 ## Consequences
 
-Loss of Redis must not cause loss of business truth. Outbox schema, dispatch,
-retry behavior, and idempotency records remain future work. Foundation 001 only
-provides healthy local PostgreSQL and Redis containers and does not claim these
-patterns are implemented.
+Loss of Redis cannot remove business truth. Foundation 002 implements the
+outbox schema, database claim primitive, and command receipts. It intentionally
+does not implement an outbox dispatcher, BullMQ integration, or consumer retry
+policy.
