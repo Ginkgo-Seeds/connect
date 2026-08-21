@@ -8,21 +8,21 @@ export interface FirecrawlLeadDiscoveryRequest {
 }
 
 export interface FirecrawlLeadRecord {
-  readonly recordId?: string;
-  readonly name?: string;
-  readonly title?: string;
-  readonly company?: string;
-  readonly companyUrl?: string;
-  readonly city?: string;
-  readonly state?: string;
-  readonly location?: string;
-  readonly phone?: string;
-  readonly industry?: string;
-  readonly companySize?: string;
-  readonly fundingStage?: string;
-  readonly profileUrl?: string;
-  readonly sourceUrl?: string;
-  readonly notes?: string;
+  readonly recordId?: string | undefined;
+  readonly name?: string | undefined;
+  readonly title?: string | undefined;
+  readonly company?: string | undefined;
+  readonly companyUrl?: string | undefined;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly location?: string | undefined;
+  readonly phone?: string | undefined;
+  readonly industry?: string | undefined;
+  readonly companySize?: string | undefined;
+  readonly fundingStage?: string | undefined;
+  readonly profileUrl?: string | undefined;
+  readonly sourceUrl?: string | undefined;
+  readonly notes?: string | undefined;
 }
 
 export interface FirecrawlLeadCollectionResult {
