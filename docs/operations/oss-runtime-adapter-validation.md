@@ -20,20 +20,20 @@ No step implies automatic promotion.
 
 ## Common adapter gates
 
-| Gate | Required evidence |
-|---|---|
-| Caller boundary | public request cannot choose provider/adapter/executor/upstream project |
-| Secret boundary | raw secret rejected; scoped credential reference used at runtime boundary |
-| Contract mapping | valid Ginkgo input maps to implementation request and normalized result |
-| Error mapping | implementation errors map to stable Ginkgo error categories |
-| Timeout | deadline enforced and normalized |
-| Cancellation | cancellation produces deterministic normalized outcome where supported |
-| Retry | bounded, observable and idempotency-aware |
-| Evidence | upstream/run refs mapped without leaking secrets |
-| Cost/usage | recorded when implementation exposes reliable usage data |
-| Isolation | tenant/workspace/session boundaries tested where applicable |
-| Pinning | exact upstream version/commit recorded |
-| License | exact files/features used have a recorded decision |
+| Gate             | Required evidence                                                         |
+| ---------------- | ------------------------------------------------------------------------- |
+| Caller boundary  | public request cannot choose provider/adapter/executor/upstream project   |
+| Secret boundary  | raw secret rejected; scoped credential reference used at runtime boundary |
+| Contract mapping | valid Ginkgo input maps to implementation request and normalized result   |
+| Error mapping    | implementation errors map to stable Ginkgo error categories               |
+| Timeout          | deadline enforced and normalized                                          |
+| Cancellation     | cancellation produces deterministic normalized outcome where supported    |
+| Retry            | bounded, observable and idempotency-aware                                 |
+| Evidence         | upstream/run refs mapped without leaking secrets                          |
+| Cost/usage       | recorded when implementation exposes reliable usage data                  |
+| Isolation        | tenant/workspace/session boundaries tested where applicable               |
+| Pinning          | exact upstream version/commit recorded                                    |
+| License          | exact files/features used have a recorded decision                        |
 
 ## Langflow
 
