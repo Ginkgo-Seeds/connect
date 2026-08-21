@@ -21,3 +21,5 @@ export type ReadOnlyConnectorPort = Port<
   ReadOnlyConnectorQuery,
   ReadOnlyConnectorResult
 >;
+
+export * from './firecrawl-lead-discovery.js';
