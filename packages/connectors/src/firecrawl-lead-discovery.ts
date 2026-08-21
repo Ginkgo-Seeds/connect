@@ -116,9 +116,10 @@ export class FirecrawlLeadDiscoveryAdapter {
         categories,
         source: {
           sourceId: this.sourcePolicy.sourceId,
+          policyEligible: true,
+          policyDecisionRef: this.sourcePolicy.policyDecisionRef,
           sourceRecordId: nonEmpty(record.recordId),
           sourceUrl,
-          policyEligible: true,
           evidenceRef: `${result.evidenceReference}#record-${index + 1}`,
         },
       });
