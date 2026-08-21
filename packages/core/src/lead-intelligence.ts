@@ -4,6 +4,7 @@ export type LeadBand = 'HOT' | 'GOOD' | 'MEDIUM' | 'LOW';
 export interface LeadSourceRef {
   readonly sourceId: string;
   readonly policyEligible: boolean;
+  readonly policyDecisionRef?: string | undefined;
   readonly sourceRecordId?: string | undefined;
   readonly sourceUrl?: string | undefined;
   readonly evidenceRef?: string | undefined;
@@ -52,6 +53,7 @@ export interface NormalizedLead {
   readonly phoneE164?: string | undefined;
   readonly phoneStatus: ContactStatus;
   readonly whatsappStatus: ContactStatus;
+  readonly whatsappEvidence?: WhatsAppValidationEvidence | undefined;
   readonly website?: string | undefined;
   readonly domain?: string | undefined;
   readonly categories: readonly string[];
@@ -141,7 +143,11 @@ export function canonicalizeDomain(value?: string): string | undefined {
 export function normalizeBrazilianPhone(value?: string): string | undefined {
   if (!value) return undefined;
 
-  const digits = value.replace(/\D/g, '');
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (trimmed.startsWith('+') && !digits.startsWith('55')) return undefined;
+  if (digits.startsWith('00')) return undefined;
+
   const national =
     digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
       ? digits.slice(2)
@@ -180,6 +186,7 @@ export function normalizeLead(candidate: LeadCandidate): NormalizedLead {
     phoneE164,
     phoneStatus: candidate.phoneRaw ? (phoneE164 ? 'VALID' : 'INVALID') : 'UNKNOWN',
     whatsappStatus: resolveWhatsAppStatus(candidate.whatsappEvidence),
+    whatsappEvidence: candidate.whatsappEvidence,
     website: candidate.website?.trim() || undefined,
     domain,
     categories: candidate.categories ?? [],
@@ -273,6 +280,42 @@ function leadKeys(lead: NormalizedLead): readonly string[] {
   return keys;
 }
 
+function mergeSignals(
+  primary?: LeadObservedSignals,
+  duplicate?: LeadObservedSignals,
+): LeadObservedSignals | undefined {
+  if (!primary && !duplicate) return undefined;
+  return {
+    commercialFit: primary?.commercialFit ?? duplicate?.commercialFit,
+    digitalPresence: primary?.digitalPresence ?? duplicate?.digitalPresence,
+    operationalScale: primary?.operationalScale ?? duplicate?.operationalScale,
+    automationOpportunity:
+      primary?.automationOpportunity ?? duplicate?.automationOpportunity,
+  };
+}
+
+function contactStatusRank(status: ContactStatus): number {
+  switch (status) {
+    case 'VALID':
+      return 4;
+    case 'INVALID':
+      return 3;
+    case 'UNKNOWN':
+      return 2;
+    case 'NOT_CHECKED':
+      return 1;
+  }
+}
+
+function preferContactStatus(
+  primary: ContactStatus,
+  duplicate: ContactStatus,
+): ContactStatus {
+  return contactStatusRank(primary) >= contactStatusRank(duplicate)
+    ? primary
+    : duplicate;
+}
+
 function mergeLead(primary: NormalizedLead, duplicate: NormalizedLead): NormalizedLead {
   const sourceMap = new Map<string, LeadSourceRef>();
   for (const source of [...primary.sourceRefs, ...duplicate.sourceRefs]) {
@@ -280,25 +323,32 @@ function mergeLead(primary: NormalizedLead, duplicate: NormalizedLead): Normaliz
     sourceMap.set(key, source);
   }
 
+  const preferredWhatsapp =
+    contactStatusRank(primary.whatsappStatus) >=
+    contactStatusRank(duplicate.whatsappStatus)
+      ? primary
+      : duplicate;
+
   return {
     ...primary,
     phoneRaw: primary.phoneRaw ?? duplicate.phoneRaw,
     phoneE164: primary.phoneE164 ?? duplicate.phoneE164,
-    phoneStatus:
-      primary.phoneStatus === 'VALID' ? primary.phoneStatus : duplicate.phoneStatus,
-    whatsappStatus:
-      primary.whatsappStatus === 'VALID'
-        ? primary.whatsappStatus
-        : duplicate.whatsappStatus,
+    phoneStatus: preferContactStatus(primary.phoneStatus, duplicate.phoneStatus),
+    whatsappStatus: preferContactStatus(
+      primary.whatsappStatus,
+      duplicate.whatsappStatus,
+    ),
+    whatsappEvidence: preferredWhatsapp.whatsappEvidence,
     website: primary.website ?? duplicate.website,
     domain: primary.domain ?? duplicate.domain,
     city: primary.city ?? duplicate.city,
     state: primary.state ?? duplicate.state,
     categories: [...new Set([...primary.categories, ...duplicate.categories])],
     rating: primary.rating ?? duplicate.rating,
-    reviewCount: Math.max(primary.reviewCount ?? 0, duplicate.reviewCount ?? 0) || undefined,
+    reviewCount:
+      Math.max(primary.reviewCount ?? 0, duplicate.reviewCount ?? 0) || undefined,
     sourceRefs: [...sourceMap.values()],
-    signals: primary.signals ?? duplicate.signals,
+    signals: mergeSignals(primary.signals, duplicate.signals),
   };
 }
 
@@ -350,7 +400,7 @@ export function buildLeadBatch(
     const reasons: string[] = [];
     const qualification = qualifyLead(lead);
 
-    if (!lead.sourceRefs.some((source) => source.policyEligible)) {
+    if (!lead.sourceRefs.every((source) => source.policyEligible)) {
       reasons.push('SOURCE_POLICY_BLOCKED');
     }
     if (policy.requirePhone && lead.phoneStatus !== 'VALID') {
