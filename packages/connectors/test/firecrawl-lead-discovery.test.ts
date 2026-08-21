@@ -50,6 +50,7 @@ describe('FirecrawlLeadDiscoveryAdapter', () => {
           sourceId: 'firecrawl-public-web',
           sourceRecordId: 'company-1',
           policyEligible: true,
+          policyDecisionRef: 'policy:lead-source:firecrawl-public-web:v1',
           evidenceRef: 'firecrawl:fixture:run-1#record-1',
         }),
       }),
@@ -100,19 +101,25 @@ describe('FirecrawlLeadDiscoveryAdapter', () => {
 
   it.each([
     [{ target: '', maxLeads: 10 }, 'target must not be empty'],
-    [{ target: 'software', maxLeads: 0 }, 'maxLeads must be a positive integer'],
-  ])('validates adapter input before transport execution', async (request, message) => {
-    const collectLeads = vi.fn();
-    const adapter = new FirecrawlLeadDiscoveryAdapter(
-      { collectLeads },
-      {
-        sourceId: 'firecrawl-public-web',
-        policyEligible: true,
-        policyDecisionRef: 'policy:lead-source:firecrawl-public-web:v1',
-      },
-    );
+    [
+      { target: 'software', maxLeads: 0 },
+      'maxLeads must be a positive integer',
+    ],
+  ])(
+    'validates adapter input before transport execution',
+    async (request, message) => {
+      const collectLeads = vi.fn();
+      const adapter = new FirecrawlLeadDiscoveryAdapter(
+        { collectLeads },
+        {
+          sourceId: 'firecrawl-public-web',
+          policyEligible: true,
+          policyDecisionRef: 'policy:lead-source:firecrawl-public-web:v1',
+        },
+      );
 
-    await expect(adapter.discover(request)).rejects.toThrow(message);
-    expect(collectLeads).not.toHaveBeenCalled();
-  });
+      await expect(adapter.discover(request)).rejects.toThrow(message);
+      expect(collectLeads).not.toHaveBeenCalled();
+    },
+  );
 });
