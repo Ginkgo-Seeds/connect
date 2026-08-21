@@ -4,9 +4,9 @@ export type LeadBand = 'HOT' | 'GOOD' | 'MEDIUM' | 'LOW';
 export interface LeadSourceRef {
   readonly sourceId: string;
   readonly policyEligible: boolean;
-  readonly sourceRecordId?: string;
-  readonly sourceUrl?: string;
-  readonly evidenceRef?: string;
+  readonly sourceRecordId?: string | undefined;
+  readonly sourceUrl?: string | undefined;
+  readonly evidenceRef?: string | undefined;
 }
 
 export interface ObservedSignal {
@@ -15,50 +15,50 @@ export interface ObservedSignal {
 }
 
 export interface LeadObservedSignals {
-  readonly commercialFit?: ObservedSignal;
-  readonly digitalPresence?: ObservedSignal;
-  readonly operationalScale?: ObservedSignal;
-  readonly automationOpportunity?: ObservedSignal;
+  readonly commercialFit?: ObservedSignal | undefined;
+  readonly digitalPresence?: ObservedSignal | undefined;
+  readonly operationalScale?: ObservedSignal | undefined;
+  readonly automationOpportunity?: ObservedSignal | undefined;
 }
 
 export interface WhatsAppValidationEvidence {
   readonly status: Exclude<ContactStatus, 'NOT_CHECKED'>;
   readonly method: string;
   readonly conclusive: boolean;
-  readonly evidenceRef?: string;
+  readonly evidenceRef?: string | undefined;
 }
 
 export interface LeadCandidate {
   readonly name: string;
-  readonly city?: string;
-  readonly state?: string;
-  readonly phoneRaw?: string;
-  readonly website?: string;
-  readonly domain?: string;
-  readonly categories?: readonly string[];
-  readonly rating?: number;
-  readonly reviewCount?: number;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly phoneRaw?: string | undefined;
+  readonly website?: string | undefined;
+  readonly domain?: string | undefined;
+  readonly categories?: readonly string[] | undefined;
+  readonly rating?: number | undefined;
+  readonly reviewCount?: number | undefined;
   readonly source: LeadSourceRef;
-  readonly signals?: LeadObservedSignals;
-  readonly whatsappEvidence?: WhatsAppValidationEvidence;
+  readonly signals?: LeadObservedSignals | undefined;
+  readonly whatsappEvidence?: WhatsAppValidationEvidence | undefined;
 }
 
 export interface NormalizedLead {
   readonly canonicalName: string;
   readonly displayName: string;
-  readonly city?: string;
-  readonly state?: string;
-  readonly phoneRaw?: string;
-  readonly phoneE164?: string;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly phoneRaw?: string | undefined;
+  readonly phoneE164?: string | undefined;
   readonly phoneStatus: ContactStatus;
   readonly whatsappStatus: ContactStatus;
-  readonly website?: string;
-  readonly domain?: string;
+  readonly website?: string | undefined;
+  readonly domain?: string | undefined;
   readonly categories: readonly string[];
-  readonly rating?: number;
-  readonly reviewCount?: number;
+  readonly rating?: number | undefined;
+  readonly reviewCount?: number | undefined;
   readonly sourceRefs: readonly LeadSourceRef[];
-  readonly signals?: LeadObservedSignals;
+  readonly signals?: LeadObservedSignals | undefined;
 }
 
 export interface LeadQualification {
@@ -77,9 +77,9 @@ export interface LeadQualification {
 export interface LeadBatchPolicy {
   readonly targetAcceptedLeads: number;
   readonly minimumScore: number;
-  readonly acceptedBands?: readonly LeadBand[];
-  readonly requirePhone?: boolean;
-  readonly requireWhatsapp?: boolean;
+  readonly acceptedBands?: readonly LeadBand[] | undefined;
+  readonly requirePhone?: boolean | undefined;
+  readonly requireWhatsapp?: boolean | undefined;
 }
 
 export interface QualifiedLead {
