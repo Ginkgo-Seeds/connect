@@ -366,9 +366,9 @@ export function buildLeadBatch(
       reasons.push('BAND_NOT_ACCEPTED');
     }
 
-    if (reasons.length === 0 && accepted.length < policy.targetAcceptedLeads) {
+    if (reasons.length === 0) {
       accepted.push({ lead, qualification });
-    } else if (reasons.length > 0) {
+    } else {
       rejected.push({ lead, reasons });
     }
   }
