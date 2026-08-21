@@ -184,7 +184,11 @@ export function normalizeLead(candidate: LeadCandidate): NormalizedLead {
     state: candidate.state?.trim().toUpperCase() || undefined,
     phoneRaw: candidate.phoneRaw,
     phoneE164,
-    phoneStatus: candidate.phoneRaw ? (phoneE164 ? 'VALID' : 'INVALID') : 'UNKNOWN',
+    phoneStatus: candidate.phoneRaw
+      ? phoneE164
+        ? 'VALID'
+        : 'INVALID'
+      : 'UNKNOWN',
     whatsappStatus: resolveWhatsAppStatus(candidate.whatsappEvidence),
     whatsappEvidence: candidate.whatsappEvidence,
     website: candidate.website?.trim() || undefined,
@@ -316,7 +320,10 @@ function preferContactStatus(
     : duplicate;
 }
 
-function mergeLead(primary: NormalizedLead, duplicate: NormalizedLead): NormalizedLead {
+function mergeLead(
+  primary: NormalizedLead,
+  duplicate: NormalizedLead,
+): NormalizedLead {
   const sourceMap = new Map<string, LeadSourceRef>();
   for (const source of [...primary.sourceRefs, ...duplicate.sourceRefs]) {
     const key = `${source.sourceId}:${source.sourceRecordId ?? source.sourceUrl ?? source.evidenceRef ?? ''}`;
@@ -333,7 +340,10 @@ function mergeLead(primary: NormalizedLead, duplicate: NormalizedLead): Normaliz
     ...primary,
     phoneRaw: primary.phoneRaw ?? duplicate.phoneRaw,
     phoneE164: primary.phoneE164 ?? duplicate.phoneE164,
-    phoneStatus: preferContactStatus(primary.phoneStatus, duplicate.phoneStatus),
+    phoneStatus: preferContactStatus(
+      primary.phoneStatus,
+      duplicate.phoneStatus,
+    ),
     whatsappStatus: preferContactStatus(
       primary.whatsappStatus,
       duplicate.whatsappStatus,
@@ -346,7 +356,8 @@ function mergeLead(primary: NormalizedLead, duplicate: NormalizedLead): Normaliz
     categories: [...new Set([...primary.categories, ...duplicate.categories])],
     rating: primary.rating ?? duplicate.rating,
     reviewCount:
-      Math.max(primary.reviewCount ?? 0, duplicate.reviewCount ?? 0) || undefined,
+      Math.max(primary.reviewCount ?? 0, duplicate.reviewCount ?? 0) ||
+      undefined,
     sourceRefs: [...sourceMap.values()],
     signals: mergeSignals(primary.signals, duplicate.signals),
   };
@@ -383,7 +394,10 @@ export function buildLeadBatch(
   candidates: readonly LeadCandidate[],
   policy: LeadBatchPolicy,
 ): LeadBatchResult {
-  if (!Number.isInteger(policy.targetAcceptedLeads) || policy.targetAcceptedLeads < 1) {
+  if (
+    !Number.isInteger(policy.targetAcceptedLeads) ||
+    policy.targetAcceptedLeads < 1
+  ) {
     throw new Error('targetAcceptedLeads must be a positive integer');
   }
   if (policy.minimumScore < 0 || policy.minimumScore > 100) {
