@@ -36,17 +36,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
+      - name: Formatting diagnostic
+        run: |
+          pnpm exec prettier --write docs/operations/oss-runtime-adapter-validation.md packages/core/src/lead-intelligence.ts packages/core/test/lead-intelligence.test.ts packages/connectors/test/firecrawl-lead-discovery.test.ts
+          git diff --no-ext-diff -- docs/operations/oss-runtime-adapter-validation.md packages/core/src/lead-intelligence.ts packages/core/test/lead-intelligence.test.ts packages/connectors/test/firecrawl-lead-discovery.test.ts
+          exit 1
 
   infrastructure:
     name: Infrastructure smoke test
