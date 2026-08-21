@@ -23,6 +23,7 @@ function candidate(overrides: Partial<LeadCandidate> = {}): LeadCandidate {
       sourceRecordId: 'acme-1',
       sourceUrl: 'https://directory.example/acme',
       policyEligible: true,
+      policyDecisionRef: 'policy:fixture-directory:v1',
       evidenceRef: 'evidence:source:acme-1',
     },
     signals: {
@@ -47,7 +48,7 @@ describe('lead intelligence normalization', () => {
     expect(normalizeBrazilianPhone(input)).toBe(expected);
   });
 
-  it.each(['123', '+1 415 555 0100', '00 0000-0000']) (
+  it.each(['123', '+1 415 555 0100', '00 0000-0000'])(
     'rejects malformed or non-Brazilian phone %s',
     (input) => {
       expect(normalizeBrazilianPhone(input)).toBeUndefined();
@@ -65,15 +66,21 @@ describe('lead intelligence normalization', () => {
     ).toBe('UNKNOWN');
   });
 
-  it('accepts an explicitly conclusive approved WhatsApp validation method', () => {
-    expect(
-      resolveWhatsAppStatus({
-        status: 'VALID',
-        method: 'provider_explicit_status',
-        conclusive: true,
-        evidenceRef: 'provider:status:123',
+  it('accepts and retains approved conclusive WhatsApp evidence', () => {
+    const evidence = {
+      status: 'VALID' as const,
+      method: 'provider_explicit_status',
+      conclusive: true,
+      evidenceRef: 'provider:status:123',
+    };
+
+    expect(resolveWhatsAppStatus(evidence)).toBe('VALID');
+    expect(normalizeLead(candidate({ whatsappEvidence: evidence }))).toEqual(
+      expect.objectContaining({
+        whatsappStatus: 'VALID',
+        whatsappEvidence: evidence,
       }),
-    ).toBe('VALID');
+    );
   });
 });
 
@@ -119,6 +126,7 @@ describe('lead intelligence deduplication', () => {
           sourceId: 'second-source',
           sourceRecordId: 'row-22',
           policyEligible: true,
+          policyDecisionRef: 'policy:second-source:v1',
           evidenceRef: 'evidence:second',
         },
       }),
@@ -128,6 +136,41 @@ describe('lead intelligence deduplication', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.sourceRefs).toHaveLength(2);
+  });
+
+  it('does not wash blocked provenance through an eligible duplicate', () => {
+    const result = buildLeadBatch(
+      [
+        candidate({
+          source: {
+            sourceId: 'blocked-source',
+            sourceRecordId: 'blocked-acme',
+            policyEligible: false,
+            policyDecisionRef: 'policy:blocked',
+            evidenceRef: 'evidence:blocked',
+          },
+        }),
+        candidate({
+          name: 'ACME Automação',
+          source: {
+            sourceId: 'allowed-source',
+            sourceRecordId: 'allowed-acme',
+            policyEligible: true,
+            policyDecisionRef: 'policy:allowed',
+            evidenceRef: 'evidence:allowed',
+          },
+        }),
+      ],
+      {
+        targetAcceptedLeads: 1,
+        minimumScore: 60,
+        requirePhone: true,
+      },
+    );
+
+    expect(result.duplicatesRemoved).toBe(1);
+    expect(result.accepted).toHaveLength(0);
+    expect(result.rejected[0]?.reasons).toContain('SOURCE_POLICY_BLOCKED');
   });
 });
 
@@ -151,6 +194,7 @@ describe('lead batch acceptance gates', () => {
             sourceId: 'blocked-source',
             sourceRecordId: 'blocked-1',
             policyEligible: false,
+            policyDecisionRef: 'policy:blocked',
             evidenceRef: 'blocked:evidence',
           },
           whatsappEvidence: {
@@ -168,6 +212,7 @@ describe('lead batch acceptance gates', () => {
             sourceId: 'fixture-directory',
             sourceRecordId: 'unknown-1',
             policyEligible: true,
+            policyDecisionRef: 'policy:fixture-directory:v1',
             evidenceRef: 'unknown:evidence',
           },
           whatsappEvidence: {
@@ -221,6 +266,7 @@ describe('lead batch acceptance gates', () => {
             sourceId: 'fixture-directory',
             sourceRecordId: 'beta-1',
             policyEligible: true,
+            policyDecisionRef: 'policy:fixture-directory:v1',
             evidenceRef: 'evidence:beta',
           },
           whatsappEvidence: acceptedWhatsApp,
